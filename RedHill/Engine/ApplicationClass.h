@@ -1,7 +1,6 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "D3DClass.h"
 
 
 const bool FULL_SCREEN = false; // should be false until setted up to be windowed fullscreen
@@ -24,5 +23,9 @@ public:
 private:
 	
 	bool Render();
+
+private:
+
+	D3DClass* m_d3d;
 };
 
