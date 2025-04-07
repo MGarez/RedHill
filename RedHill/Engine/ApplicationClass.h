@@ -1,7 +1,9 @@
 #pragma once
 
 #include "D3DClass.h"
-
+#include "CameraClass.h"
+#include "ModelClass.h"
+#include "ColorShaderClass.h"
 
 const bool FULL_SCREEN = false; // should be false until setted up to be windowed fullscreen
 const bool VSYNC_ENABLED = true;
@@ -27,5 +29,8 @@ private:
 private:
 
 	D3DClass* m_d3d;
+	CameraClass* m_Camera;
+	ModelClass* m_Model;
+	ColorShaderClass* m_ColorShader;
 };
 
