@@ -6,6 +6,7 @@ ApplicationClass::ApplicationClass()
 	m_Camera = nullptr;
 	m_Model = nullptr;
 	m_ColorShader = nullptr;
+	m_textureShader = nullptr;
 }
 
 ApplicationClass::ApplicationClass(const ApplicationClass& other)
@@ -27,20 +28,24 @@ bool ApplicationClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 	}
 
 	m_Camera = new CameraClass;
-	m_Camera->SetPosition(0.f, 0.f, -2.f);
+	m_Camera->SetPosition(0.f, 0.f, -5.f);
+
+	char textureFilename[128];
+
+	strcpy_s(textureFilename, "../Engine/data/stone01.tga");
 
 	m_Model = new ModelClass;
-	if (!m_Model->Initialize(m_d3d->GetDevice()))
+	if (!m_Model->Initialize(m_d3d->GetDevice(), m_d3d->GetDeviceContext(), textureFilename))
 	{
 		::MessageBox(hwnd, L"Could not initialize the model object", L"Error", MB_OK);
 		return false;
 	}
 
-	m_ColorShader = new ColorShaderClass;
+	m_textureShader = new TextureShaderClass;
 
-	if (!m_ColorShader->Initialize(m_d3d->GetDevice(), hwnd))
+	if (!m_textureShader->Initialize(m_d3d->GetDevice(), hwnd))
 	{
-		::MessageBox(hwnd, L"Could not initialize the color shader object", L"Error", MB_OK);
+		MessageBox(hwnd, L"Could not initialize the texture shader object.", L"Error", MB_OK);
 		return false;
 	}
 
@@ -49,6 +54,12 @@ bool ApplicationClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 
 void ApplicationClass::Shutdown()
 {
+	if (m_textureShader)
+	{
+		m_textureShader->Shutdown();
+		delete m_textureShader;
+		m_textureShader = nullptr;
+	}
 	if (m_ColorShader)
 	{
 		m_ColorShader->Shutdown();
@@ -97,7 +108,7 @@ bool ApplicationClass::Render()
 
 	m_Model->Render(m_d3d->GetDeviceContext());
 
-	if (!m_ColorShader->Render(m_d3d->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix))
+	if (!m_textureShader->Render(m_d3d->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix, m_Model->GetTexture()))
 	{
 		return false;
 	}
