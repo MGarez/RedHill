@@ -137,10 +137,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="D3D12App.cpp" />
+    <ClCompile Include="DXSample.cpp" />
+    <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common.h" />
     <ClInclude Include="D3D12App.h" />
+    <ClInclude Include="DXHelper.h" />
+    <ClInclude Include="DXSample.h" />
+    <ClInclude Include="Win32Application.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
