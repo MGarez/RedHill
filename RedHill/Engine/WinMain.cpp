@@ -1,22 +1,8 @@
-#include "SystemClass.h"
-
-int WINAPI wWinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  PWSTR pCmdLine,  int nShowCmd)
+#include "D3D12App.h"
+#include "Win32Application.h"
+_Use_decl_annotations_
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	SystemClass* System;
-	
-	// Create the system object
-	System = new SystemClass;
-	
-	// Initialize and run the System
-	if (System->Initialize())
-	{
-		System->Run();
-	}
-
-	// Shutdown and release the system object
-	System->Shutdown();
-	delete System;
-	System = nullptr;
-
-	return 0;
+	D3D12App sample(1280, 720, L"D3D12 Hello Window");
+	return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

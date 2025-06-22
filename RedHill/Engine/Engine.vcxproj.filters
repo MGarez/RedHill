@@ -18,61 +18,34 @@
     <ClCompile Include="WinMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SystemClass.cpp">
+    <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InputClass.cpp">
+    <ClCompile Include="DXSample.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="D3DClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CameraClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ColorShaderClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TextureShaderClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TextureClass.cpp">
+    <ClCompile Include="D3D12App.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SystemClass.h">
+    <ClInclude Include="Win32Application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InputClass.h">
+    <ClInclude Include="DXSample.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationClass.h">
+    <ClInclude Include="DXHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D3DClass.h">
+    <ClInclude Include="Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ModelClass.h">
+    <ClInclude Include="D3D12App.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CameraClass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ColorShaderClass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TextureShaderClass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TextureClass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
