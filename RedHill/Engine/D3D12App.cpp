@@ -61,7 +61,8 @@ D3D12App::D3D12App(UINT width, UINT height, std::wstring name)
 	m_frameIndex(0),
 	m_viewport(0.0f,0.0f, static_cast<FLOAT>(width), static_cast<FLOAT>(height)),
 	m_scissorRect(0,0, static_cast<LONG>(width), static_cast<LONG>(height)),
-	m_rtvDescriptorSize(0)
+	m_rtvDescriptorSize(0), 
+	m_constantBufferData{}
 {
 }
 
@@ -75,7 +76,15 @@ void D3D12App::OnUpdate()
 {
 	// Modify the constant, vertex, index buffers and everything else as necessary
 
-	// (nothing yet)
+	const float translationSpeed = 0.005f;
+	const float offsetBounds = 1.25f;
+
+	m_constantBufferData.offset.x += translationSpeed;
+	if (m_constantBufferData.offset.x > offsetBounds)
+	{
+		m_constantBufferData.offset.x = -offsetBounds;
+	}
+	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 }
 
 void D3D12App::OnRender()
@@ -165,7 +174,7 @@ void D3D12App::InitPipeline()
 	ThrowIfFailed(swapchain.As(&m_swapChain));
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-	// Create a render target view descriptor heap
+	// Create descriptor heaps
 
 	D3D12_DESCRIPTOR_HEAP_DESC rtv_desc = {};
 	rtv_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -175,6 +184,13 @@ void D3D12App::InitPipeline()
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&rtv_desc, IID_PPV_ARGS(&m_rtvHeap)));
 
 	m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	D3D12_DESCRIPTOR_HEAP_DESC cbv_desc = {};
+	cbv_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	cbv_desc.NodeMask = 0;
+	cbv_desc.NumDescriptors = 1;
+	cbv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&cbv_desc, IID_PPV_ARGS(&m_cbvHeap)));
 		
 	// Create frame resources (a render target view for each frame)
 	
@@ -194,14 +210,36 @@ void D3D12App::InitPipeline()
 
 void D3D12App::InitAssets()
 {
-	// Create an empty root signature
+	// Create a root signature with a descriptor table with a single CBV
 
-	CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+	
+	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+	if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+	{
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+	}
+
+	CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
+	rsDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
-	ThrowIfFailed(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rsDesc, featureData.HighestVersion, &signature, &error));
 	ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 
 	// Shader compilation
@@ -216,8 +254,8 @@ void D3D12App::InitAssets()
 	UINT compileFlags = 0;
 #endif
 
-	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"TriangleShader.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vShader, nullptr));
-	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"TriangleShader.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pShader, nullptr));
+	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ConstBuffer.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vShader, nullptr));
+	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ConstBuffer.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pShader, nullptr));
 
 	// Create the vertex input layout
 	D3D12_INPUT_ELEMENT_DESC inputDesc[] =
@@ -263,11 +301,11 @@ void D3D12App::InitAssets()
 	const UINT vertexBufferSize = sizeof(triangleVertices);
 
 	// Note: using upload heaps to transfer static data like vert buffers is not recommended
-	auto heap_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto heap_upload_properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	auto buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
 
 
-	ThrowIfFailed(m_device->CreateCommittedResource(&heap_properties, D3D12_HEAP_FLAG_NONE, &buffer_desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&m_vertexBuffer)));
+	ThrowIfFailed(m_device->CreateCommittedResource(&heap_upload_properties, D3D12_HEAP_FLAG_NONE, &buffer_desc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&m_vertexBuffer)));
 
 	// Copy the data to the vertex buffer
 	UINT8* pVertexDataBegin;
@@ -281,6 +319,24 @@ void D3D12App::InitAssets()
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
+
+	// Create the constant buffer;
+
+	const UINT constantBufferSize = sizeof(SceneConstantBuffer);
+	auto cbv_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
+
+	ThrowIfFailed(m_device->CreateCommittedResource(&heap_upload_properties, D3D12_HEAP_FLAG_NONE, &cbv_buffer_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_constantBuffer)));
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC  cbv_desc = {};
+	cbv_desc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+	cbv_desc.SizeInBytes = constantBufferSize;
+	m_device->CreateConstantBufferView(&cbv_desc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// Map and initialize the constant buffer. We don't unmap this until the
+	// app closes. Keeping things mapped for the lifetime of the resource is okay.
+	CD3DX12_RANGE cbv_readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+	ThrowIfFailed(m_constantBuffer->Map(0, &cbv_readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 
 	// Create and record the bundle
 
@@ -319,6 +375,12 @@ void D3D12App::PopulateCommandList()
 
 	// Set the graphics root signature
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+	// Set necessary state
+	ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
+	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Set the viewport and scissor rectangles
 
