@@ -1,9 +1,32 @@
 #pragma once
 
 #include "DXSample.h"
+#include "MathUtils.h"
+
+#include <memory>
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
+
+struct Mesh
+{
+    ComPtr<ID3DBlob> vBufferData = nullptr;
+    ComPtr<ID3D12Resource> vBuffer = nullptr;
+    ComPtr<ID3D12Resource> vBufferUplader = nullptr;
+
+    UINT vBufferSize = 0;
+    UINT vBufferStride = 0;
+
+    D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const 
+    {
+        D3D12_VERTEX_BUFFER_VIEW vbv = {};
+        vbv.BufferLocation = vBuffer->GetGPUVirtualAddress();
+        vbv.SizeInBytes = vBufferSize;
+        vbv.StrideInBytes = vBufferStride;
+
+        return vbv;
+    }
+};
 
 class D3D12App : public DXSample
 {
@@ -27,7 +50,7 @@ private:
 
 	struct SceneConstantBuffer
 	{
-		XMFLOAT4 offset;
+        XMFLOAT4 offset;
 		float padding[60]; // Padding so the constant buffer is 256-byte aligned.
 	};
 	static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
@@ -50,12 +73,13 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
-    ComPtr<ID3D12GraphicsCommandList> m_bundle;
+    //ComPtr<ID3D12GraphicsCommandList> m_bundle;
     UINT m_rtvDescriptorSize;
 
     // App resources
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+
+    std::unique_ptr<Mesh> m_mesh = nullptr;
+
     ComPtr<ID3D12Resource> m_constantBuffer;
     SceneConstantBuffer m_constantBufferData;
     UINT8* m_pCbvDataBegin;
@@ -71,4 +95,7 @@ private:
     void PopulateCommandList();
     void MoveToNextFrame();
     void WaitForGpu();
+
+    // Helper function to create a buffer in the default heap
+    ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* data, ComPtr<ID3D12Resource>& uploadBuffer, UINT size);
 };
