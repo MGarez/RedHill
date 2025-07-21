@@ -28,6 +28,13 @@ struct Mesh
     }
 };
 
+struct CameraPosition
+{
+    float theta;
+    float phi;
+    float radius;
+};
+
 class D3D12App : public DXSample
 {
 public:
@@ -37,6 +44,10 @@ public:
     virtual void OnUpdate() override;
     virtual void OnRender() override;
     virtual void OnDestroy() override;
+
+	virtual void OnMouseButtonDown(WPARAM btnState, int x, int y) override;
+	virtual void OnMouseButtonUp(WPARAM btnState, int x, int y) override;
+	virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
 
 private:
 
@@ -48,12 +59,12 @@ private:
         XMFLOAT4 color;
     };
 
-	struct SceneConstantBuffer
+	struct ObjectCB
 	{
-        XMFLOAT4 offset;
-		float padding[60]; // Padding so the constant buffer is 256-byte aligned.
+		XMFLOAT4X4 mvp = RHMath::Identity4x4();
+		float padding[48]; // Padding so the constant buffer is 256-byte aligned.
 	};
-	static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
+	static_assert((sizeof(ObjectCB) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
 
 
@@ -65,12 +76,14 @@ private:
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+    ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_bundleAllocator[FrameCount];
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     //ComPtr<ID3D12GraphicsCommandList> m_bundle;
@@ -81,7 +94,7 @@ private:
     std::unique_ptr<Mesh> m_mesh = nullptr;
 
     ComPtr<ID3D12Resource> m_constantBuffer;
-    SceneConstantBuffer m_constantBufferData;
+    ObjectCB m_mvpData;
     UINT8* m_pCbvDataBegin;
 
     // Synchronization objects.
@@ -89,6 +102,9 @@ private:
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValues[FrameCount];
+
+    POINT m_lastMousePosition;
+    CameraPosition m_camera;
 
     void InitPipeline();
     void InitAssets();

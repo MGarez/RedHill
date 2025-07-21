@@ -29,6 +29,10 @@ public:
     virtual void OnKeyDown(UINT8 /*key*/) {}
     virtual void OnKeyUp(UINT8 /*key*/) {}
 
+    virtual void OnMouseButtonDown(WPARAM btnState, int x, int y) {};
+    virtual void OnMouseButtonUp(WPARAM btnState, int x, int y) {};
+    virtual void OnMouseMove(WPARAM btnState, int x, int y) {};
+
     // Accessors.
     UINT GetWidth() const { return m_width; }
     UINT GetHeight() const { return m_height; }

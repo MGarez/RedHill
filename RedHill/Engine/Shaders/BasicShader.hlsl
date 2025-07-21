@@ -1,6 +1,6 @@
-cbuffer SceneConstantBuffer: register(b0)
+cbuffer ObjectCB: register(b0)
 {
-    float4x4 mvp;
+    float4x4 object_mvp;
     float4 padding[12];
 };
 
@@ -14,7 +14,7 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 {
     PSInput result;
 
-    result.position = mul(position, mvp);
+    result.position = mul(position, object_mvp);
     result.color = color;
 
     return result;

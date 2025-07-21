@@ -2,7 +2,10 @@
 #include "Common.h"
 #include "DXHelper.h"
 
+#include <DirectXMath.h>
+
 #include <array>
+#include <algorithm>
 
 /*
 
@@ -65,7 +68,7 @@ D3D12App::D3D12App(UINT width, UINT height, std::wstring name)
 	m_scissorRect(0,0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0), 
 	m_fenceValues{},
-	m_constantBufferData{}
+	m_mvpData{}
 {
 }
 
@@ -77,17 +80,32 @@ void D3D12App::OnInit()
 
 void D3D12App::OnUpdate()
 {
-	// Modify the constant, vertex, index buffers and everything else as necessary
+	// Modify the constant buffer to update geometry position
+	// #TODO: Move this to other place and cache it only updating it if necessary
 
-	const float translationSpeed = 0.005f;
-	const float offsetBounds = 1.25f;
+	// Build the model matrix (the identity in this case)
+	XMMATRIX world = XMLoadFloat4x4(&RHMath::Identity4x4());
 
-	m_constantBufferData.offset.x += translationSpeed;
-	if (m_constantBufferData.offset.x > offsetBounds)
-	{
-		m_constantBufferData.offset.x = -offsetBounds;
-	}
-	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+	// Conver camera position from spherical to cartesian;
+	float x = m_camera.radius * sinf(m_camera.phi) * cosf(m_camera.theta);
+	float y = m_camera.radius * sinf(m_camera.phi) * sinf(m_camera.theta);
+	float z = m_camera.radius * cosf(m_camera.phi);
+
+	// Build the view matrix
+
+	XMVECTOR position = XMVectorSet(x, y, z, 1.0f);
+	XMVECTOR target = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f); // Our object is currently in the (0,0,0) position
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
+	XMMATRIX view = XMMatrixLookAtLH(position, target, up);
+
+	// Build the projection matrix
+	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 1.0f, 1000.0f);
+
+	XMMATRIX mvpMatrix = world * view * projection;
+
+	XMStoreFloat4x4(&m_mvpData.mvp, XMMatrixTranspose(mvpMatrix));
+
+	memcpy(m_pCbvDataBegin, &m_mvpData, sizeof(m_mvpData));
 }
 
 void D3D12App::OnRender()
@@ -116,6 +134,50 @@ void D3D12App::OnDestroy()
 
 	// Close the event handle
 	CloseHandle(m_fenceEvent);
+}
+
+void D3D12App::OnMouseButtonDown(WPARAM btnState, int x, int y)
+{
+	m_lastMousePosition.x = x;
+	m_lastMousePosition.y = y;
+	::SetCapture(Win32Application::GetHwnd());
+}
+
+void D3D12App::OnMouseButtonUp(WPARAM btnState, int x, int y)
+{
+	ReleaseCapture();
+}
+
+void D3D12App::OnMouseMove(WPARAM btnState, int x, int y)
+{
+	if ((btnState & MK_LBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_lastMousePosition.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_lastMousePosition.y));
+
+		// Update angles based on input to orbit camera around box.
+		m_camera.theta += dx;
+		m_camera.phi += dy;
+
+		// Restrict the angle mPhi.
+		m_camera.phi = std::clamp(m_camera.phi, 0.1f, XM_PI - 0.1f);
+	}
+	else if ((btnState & MK_RBUTTON) != 0)
+	{
+		// Make each pixel correspond to 0.005 unit in the scene.
+		float dx = 0.005f * static_cast<float>(x - m_lastMousePosition.x);
+		float dy = 0.005f * static_cast<float>(y - m_lastMousePosition.y);
+
+		// Update the camera radius based on input.
+		m_camera.radius += dx - dy;
+
+		// Restrict the radius.
+		m_camera.radius = std::clamp(m_camera.radius, 3.0f, 15.0f);
+	}
+
+	m_lastMousePosition.x = x;
+	m_lastMousePosition.y = y;
 }
 
 void D3D12App::InitPipeline()
@@ -186,14 +248,25 @@ void D3D12App::InitPipeline()
 	rtv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&rtv_desc, IID_PPV_ARGS(&m_rtvHeap)));
 
+	// #NOTA: Es posible que esto haya que moverlo a debajo del dsv_desc
 	m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsv_desc = {};
+	dsv_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsv_desc.NumDescriptors = 1;
+	dsv_desc.NodeMask = 0;
+	dsv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&dsv_desc, IID_PPV_ARGS(&m_dsvHeap)));
+
+	/*
 	D3D12_DESCRIPTOR_HEAP_DESC cbv_desc = {};
 	cbv_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	cbv_desc.NodeMask = 0;
 	cbv_desc.NumDescriptors = 1;
 	cbv_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&cbv_desc, IID_PPV_ARGS(&m_cbvHeap)));
+	*/
 		
 	// Create frame resources (a render target view for each frame)
 	
@@ -208,6 +281,20 @@ void D3D12App::InitPipeline()
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator[i])));
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&m_bundleAllocator[i])));
 	}
+
+	// Create depth-stencil view
+	D3D12_DEPTH_STENCIL_VIEW_DESC ds_desc;
+	ds_desc.Flags = D3D12_DSV_FLAG_NONE;
+	ds_desc.Format = DXGI_FORMAT_D32_FLOAT;
+	ds_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+	ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_width, m_height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D32_FLOAT, 1.0f, 0),
+		IID_PPV_ARGS(&m_depthStencil)));
+
+	m_device->CreateDepthStencilView(m_depthStencil.Get(), &ds_desc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void D3D12App::InitAssets()
@@ -256,8 +343,8 @@ void D3D12App::InitAssets()
 	UINT compileFlags = 0;
 #endif
 
-	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ConstBuffer.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vShader, nullptr));
-	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ConstBuffer.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pShader, nullptr));
+	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"BasicShader.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vShader, nullptr));
+	ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"BasicShader.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pShader, nullptr));
 
 	// Create the vertex input layout
 	D3D12_INPUT_ELEMENT_DESC inputDesc[] =
@@ -292,9 +379,9 @@ void D3D12App::InitAssets()
 	// Create and load the vertex buffers
 	std::array<Vertex, 3> triangleVertices =
 	{
-		Vertex({ XMFLOAT3(0.0f, 0.25f * m_aspectRatio, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT3(0.25f, -0.25f * m_aspectRatio, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT3(-0.25f, -0.25f * m_aspectRatio, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) })
+		Vertex({ XMFLOAT3(0.0f, 0.25f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT3(0.25f, -0.25f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT3(-0.25f, -0.25f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) })
 	};
 
 	const UINT vertexStride = sizeof(Vertex);
@@ -311,16 +398,9 @@ void D3D12App::InitAssets()
 
 	m_mesh->vBuffer = CreateDefaultBuffer(triangleVertices.data(), m_mesh->vBufferUplader, m_mesh->vBufferSize);
 
-
-	// Create the vertex buffer views
-
-	//m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-	//m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-	//m_vertexBufferView.SizeInBytes = vertexBufferSize;
-
 	// Create the constant buffer;
 
-	const UINT constantBufferSize = sizeof(SceneConstantBuffer);
+	const UINT constantBufferSize = sizeof(ObjectCB);
 	auto cbv_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
 
 	ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_constantBuffer)));
@@ -334,7 +414,7 @@ void D3D12App::InitAssets()
 	// app closes. Keeping things mapped for the lifetime of the resource is okay.
 	CD3DX12_RANGE cbv_readRange(0, 0);        // We do not intend to read from this resource on the CPU.
 	ThrowIfFailed(m_constantBuffer->Map(0, &cbv_readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+	memcpy(m_pCbvDataBegin, &m_mvpData, sizeof(m_mvpData));
 
 	// Create a fence
 	ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -388,7 +468,8 @@ void D3D12App::PopulateCommandList()
 
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
 	// Record commands into the command list
 
