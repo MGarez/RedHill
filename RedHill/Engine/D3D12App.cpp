@@ -67,9 +67,11 @@ D3D12App::D3D12App(UINT width, UINT height, std::wstring name)
 	m_viewport(0.0f,0.0f, static_cast<FLOAT>(width), static_cast<FLOAT>(height)),
 	m_scissorRect(0,0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0), 
-	m_fenceValues{},
-	m_mvpData{}
+	m_fenceValues{}
 {
+	m_camera.radius = 20.f;
+	m_camera.phi = 0.0f;
+	m_camera.theta = 0.0f;
 }
 
 void D3D12App::OnInit()
@@ -99,13 +101,16 @@ void D3D12App::OnUpdate()
 	XMMATRIX view = XMMatrixLookAtLH(position, target, up);
 
 	// Build the projection matrix
-	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 1.0f, 1000.0f);
+	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.1f, 1000.0f);
 
-	XMMATRIX mvpMatrix = world * view * projection;
+	XMMATRIX mvpMatrix = projection * view * world;
 
-	XMStoreFloat4x4(&m_mvpData.mvp, XMMatrixTranspose(mvpMatrix));
+	ObjectCB auxCB = {};
 
-	memcpy(m_pCbvDataBegin, &m_mvpData, sizeof(m_mvpData));
+	// Shaders compiled with default row-major matrices
+	XMStoreFloat4x4(&auxCB.mvp, XMMatrixTranspose(mvpMatrix));
+
+	memcpy(m_mappedConstantData, &auxCB, sizeof(ObjectCB));
 }
 
 void D3D12App::OnRender()
@@ -279,11 +284,11 @@ void D3D12App::InitPipeline()
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
 		// Create a command allocator
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator[i])));
-		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&m_bundleAllocator[i])));
+		//ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&m_bundleAllocator[i])));
 	}
 
 	// Create depth-stencil view
-	D3D12_DEPTH_STENCIL_VIEW_DESC ds_desc;
+	D3D12_DEPTH_STENCIL_VIEW_DESC ds_desc = {};
 	ds_desc.Flags = D3D12_DSV_FLAG_NONE;
 	ds_desc.Format = DXGI_FORMAT_D32_FLOAT;
 	ds_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -299,7 +304,8 @@ void D3D12App::InitPipeline()
 
 void D3D12App::InitAssets()
 {
-	// Create a root signature with a descriptor table with a single CBV
+	// Create a root signature with a constant buffer view (as a root descriptor)
+
 
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 	
@@ -309,27 +315,36 @@ void D3D12App::InitAssets()
 	{
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 	}
+	
 
-	CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-	CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+	CD3DX12_ROOT_PARAMETER1 rp[1] = {};
+	rp[0].InitAsConstantBufferView(0, 0);
 
-	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-	rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
-
-	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = 
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsDesc;
-	rsDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+	rootSignatureDesc.Init_1_1(_countof(rp), rp, 0, nullptr, rootSignatureFlags);
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
-	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rsDesc, featureData.HighestVersion, &signature, &error));
+
+	ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 	ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+
+	// Create the constant buffer and map the resource
+
+	size_t cbSize = FrameCount * sizeof(ObjectCB);
+
+	ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(cbSize), 
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(m_constantBuffer.ReleaseAndGetAddressOf())));
+
+	ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantData)));
+	m_constantDataGPUAddr = m_constantBuffer->GetGPUVirtualAddress();
 
 	// Shader compilation
 
@@ -349,8 +364,8 @@ void D3D12App::InitAssets()
 	// Create the vertex input layout
 	D3D12_INPUT_ELEMENT_DESC inputDesc[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	// Create a pipeline state object description, then the object
@@ -362,8 +377,8 @@ void D3D12App::InitAssets()
 	psoDesc.PS = CD3DX12_SHADER_BYTECODE(pShader.Get());
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = FALSE;
-	psoDesc.DepthStencilState.StencilEnable = FALSE;
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
@@ -379,9 +394,9 @@ void D3D12App::InitAssets()
 	// Create and load the vertex buffers
 	std::array<Vertex, 3> triangleVertices =
 	{
-		Vertex({ XMFLOAT3(0.0f, 0.25f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT3(0.25f, -0.25f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT3(-0.25f, -0.25f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) })
+		Vertex({ XMFLOAT4(0.0f, 0.25f, 0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(0.25f, -0.25f, 0.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(-0.25f, -0.25f, 0.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) })
 	};
 
 	const UINT vertexStride = sizeof(Vertex);
@@ -404,17 +419,6 @@ void D3D12App::InitAssets()
 	auto cbv_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
 
 	ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_constantBuffer)));
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC  cbv_desc = {};
-	cbv_desc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = constantBufferSize;
-	m_device->CreateConstantBufferView(&cbv_desc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-
-	// Map and initialize the constant buffer. We don't unmap this until the
-	// app closes. Keeping things mapped for the lifetime of the resource is okay.
-	CD3DX12_RANGE cbv_readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-	ThrowIfFailed(m_constantBuffer->Map(0, &cbv_readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-	memcpy(m_pCbvDataBegin, &m_mvpData, sizeof(m_mvpData));
 
 	// Create a fence
 	ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -450,16 +454,14 @@ void D3D12App::PopulateCommandList()
 	// Set the graphics root signature
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-	// Set necessary state
-	ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
-	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-	m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-
 	// Set the viewport and scissor rectangles
 
 	m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+	// Set necessary state
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_constantDataGPUAddr);
+
 
 	// Set a resource barrier, indicating the back buffer is to be used as a render target
 	
@@ -473,8 +475,9 @@ void D3D12App::PopulateCommandList()
 
 	// Record commands into the command list
 
-	const float clearColor[] = { 1.0f, 0.2f, 0.6f, 1.0f };
+	const float clearColor[] = { 1.0f, 0.2f, 1.f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_mesh->GetVertexBufferView());
 	m_commandList->DrawInstanced(3, 1, 0, 0);

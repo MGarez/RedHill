@@ -55,7 +55,7 @@ private:
 
     struct Vertex
     {
-        XMFLOAT3 position;
+        XMFLOAT4 position;
         XMFLOAT4 color;
     };
 
@@ -77,12 +77,13 @@ private:
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
+
     ComPtr<ID3D12CommandAllocator> m_commandAllocator[FrameCount];
-    ComPtr<ID3D12CommandAllocator> m_bundleAllocator[FrameCount];
+    //ComPtr<ID3D12CommandAllocator> m_bundleAllocator[FrameCount];
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+    //ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -93,9 +94,9 @@ private:
 
     std::unique_ptr<Mesh> m_mesh = nullptr;
 
+    ObjectCB* m_mappedConstantData;
+    D3D12_GPU_VIRTUAL_ADDRESS m_constantDataGPUAddr;
     ComPtr<ID3D12Resource> m_constantBuffer;
-    ObjectCB m_mvpData;
-    UINT8* m_pCbvDataBegin;
 
     // Synchronization objects.
     UINT m_frameIndex;
