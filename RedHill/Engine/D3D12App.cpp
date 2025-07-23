@@ -69,7 +69,7 @@ D3D12App::D3D12App(UINT width, UINT height, std::wstring name)
 	m_rtvDescriptorSize(0), 
 	m_fenceValues{}
 {
-	m_camera.radius = 20.f;
+	m_camera.radius = 30.f;
 	m_camera.phi = 0.0f;
 	m_camera.theta = 0.0f;
 }
@@ -103,7 +103,7 @@ void D3D12App::OnUpdate()
 	// Build the projection matrix
 	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.1f, 1000.0f);
 
-	XMMATRIX mvpMatrix = projection * view * world;
+	XMMATRIX mvpMatrix = world* view* projection;
 
 	ObjectCB auxCB = {};
 
@@ -178,7 +178,7 @@ void D3D12App::OnMouseMove(WPARAM btnState, int x, int y)
 		m_camera.radius += dx - dy;
 
 		// Restrict the radius.
-		m_camera.radius = std::clamp(m_camera.radius, 3.0f, 15.0f);
+		m_camera.radius = std::clamp(m_camera.radius, 5.0f, 50.0f);
 	}
 
 	m_lastMousePosition.x = x;
@@ -392,15 +392,49 @@ void D3D12App::InitAssets()
 	//Command lists are created in the recording state we leave it open to record the vertex buffer initialization commands
 	 
 	// Create and load the vertex buffers
-	std::array<Vertex, 3> triangleVertices =
+	std::array<Vertex, 8> cubeVertices =
 	{
-		Vertex({ XMFLOAT4(0.0f, 0.25f, 0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT4(0.25f, -0.25f, 0.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
-		Vertex({ XMFLOAT4(-0.25f, -0.25f, 0.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) })
+		Vertex({ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(-1.0f, +1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(+1.0f, +1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(+1.0f, -1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(-1.0f, -1.0f, +1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(-1.0f, +1.0f, +1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(+1.0f, +1.0f, +1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }),
+		Vertex({ XMFLOAT4(+1.0f, -1.0f, +1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) })
+	};
+
+	std::array<std::uint16_t, 36> indices =
+	{
+		// front face
+		0, 1, 2,
+		0, 2, 3,
+
+		// back face
+		4, 6, 5,
+		4, 7, 6,
+
+		// left face
+		4, 5, 1,
+		4, 1, 0,
+
+		// right face
+		3, 2, 6,
+		3, 6, 7,
+
+		// top face
+		1, 5, 6,
+		1, 6, 2,
+
+		// bottom face
+		4, 0, 3,
+		4, 3, 7
 	};
 
 	const UINT vertexStride = sizeof(Vertex);
-	const UINT vertexBufferSize = sizeof(triangleVertices);
+	const UINT vertexBufferSize = sizeof(cubeVertices);
+
+	const UINT indexBufferSize = static_cast<UINT>(indices.size() * sizeof(std::uint16_t));
 
 	// Create an abstraction with vertex data, buffer and uploader
 	m_mesh = std::make_unique<Mesh>();
@@ -408,10 +442,18 @@ void D3D12App::InitAssets()
 	m_mesh->vBufferSize = vertexBufferSize;
 	m_mesh->vBufferStride = vertexStride;
 
-	ThrowIfFailed(D3DCreateBlob(m_mesh->vBufferSize, &m_mesh->vBufferData));
-	::CopyMemory(m_mesh->vBufferData->GetBufferPointer(), triangleVertices.data(), m_mesh->vBufferSize);
+	m_mesh->iBufferFormat = DXGI_FORMAT_R16_UINT;
+	m_mesh->iBufferSize = indexBufferSize;
 
-	m_mesh->vBuffer = CreateDefaultBuffer(triangleVertices.data(), m_mesh->vBufferUplader, m_mesh->vBufferSize);
+	ThrowIfFailed(D3DCreateBlob(m_mesh->vBufferSize, &m_mesh->vBufferData));
+	::CopyMemory(m_mesh->vBufferData->GetBufferPointer(), cubeVertices.data(), m_mesh->vBufferSize);
+
+	m_mesh->vBuffer = CreateDefaultBuffer(cubeVertices.data(), m_mesh->vBufferUploader, m_mesh->vBufferSize);
+
+	ThrowIfFailed(D3DCreateBlob(m_mesh->iBufferSize, &m_mesh->iBufferData));
+	::CopyMemory(m_mesh->iBufferData->GetBufferPointer(), indices.data(), m_mesh->iBufferSize);
+
+	m_mesh->iBuffer = CreateDefaultBuffer(indices.data(), m_mesh->iBufferUploader, m_mesh->iBufferSize);
 
 	// Create the constant buffer;
 
@@ -480,7 +522,8 @@ void D3D12App::PopulateCommandList()
 	m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_mesh->GetVertexBufferView());
-	m_commandList->DrawInstanced(3, 1, 0, 0);
+	m_commandList->IASetIndexBuffer(&m_mesh->GetIndexBufferView());
+	m_commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 
 	// Indicate the back buffer will be used to present after the command list has executed
 	CD3DX12_RESOURCE_BARRIER pst_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

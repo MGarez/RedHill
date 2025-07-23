@@ -12,10 +12,17 @@ struct Mesh
 {
     ComPtr<ID3DBlob> vBufferData = nullptr;
     ComPtr<ID3D12Resource> vBuffer = nullptr;
-    ComPtr<ID3D12Resource> vBufferUplader = nullptr;
+    ComPtr<ID3D12Resource> vBufferUploader = nullptr;
+
+    ComPtr<ID3DBlob> iBufferData = nullptr;
+    ComPtr<ID3D12Resource> iBuffer = nullptr;
+    ComPtr<ID3D12Resource> iBufferUploader = nullptr;
 
     UINT vBufferSize = 0;
     UINT vBufferStride = 0;
+
+	UINT iBufferSize = 0;
+    DXGI_FORMAT iBufferFormat = DXGI_FORMAT_R16_UINT;
 
     D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const 
     {
@@ -25,6 +32,16 @@ struct Mesh
         vbv.StrideInBytes = vBufferStride;
 
         return vbv;
+    }
+
+    D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
+    {
+        D3D12_INDEX_BUFFER_VIEW ibv = {};
+        ibv.BufferLocation = iBuffer->GetGPUVirtualAddress();
+        ibv.SizeInBytes = iBufferSize;
+        ibv.Format = iBufferFormat;
+        
+        return ibv;
     }
 };
 
