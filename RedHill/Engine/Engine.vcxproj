@@ -94,6 +94,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ext\imgui\backends;$(SolutionDir)ext\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -110,6 +111,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ext\imgui\backends;$(SolutionDir)ext\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -126,6 +128,7 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ext\imgui\backends;$(SolutionDir)ext\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -142,6 +145,7 @@
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)ext\imgui\backends;$(SolutionDir)ext\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -152,12 +156,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\ext\imgui\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\ext\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\ext\imgui\imgui.cpp" />
+    <ClCompile Include="..\ext\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\ext\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\ext\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\ext\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\ext\imgui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="D3D12App.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\ext\imgui\backends\imgui_impl_dx12.h" />
+    <ClInclude Include="..\ext\imgui\backends\imgui_impl_win32.h" />
+    <ClInclude Include="..\ext\imgui\imconfig.h" />
+    <ClInclude Include="..\ext\imgui\imgui.h" />
+    <ClInclude Include="..\ext\imgui\imgui_internal.h" />
+    <ClInclude Include="..\ext\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\ext\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\ext\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\ext\imgui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="D3D12App.h" />
     <ClInclude Include="DXHelper.h" />
@@ -166,7 +187,11 @@
     <ClInclude Include="Win32Application.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\ext\imgui\misc\debuggers\imgui.natstepfilter" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\ext\imgui\misc\debuggers\imgui.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
