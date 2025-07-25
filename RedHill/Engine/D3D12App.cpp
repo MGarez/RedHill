@@ -69,9 +69,9 @@ D3D12App::D3D12App(UINT width, UINT height, std::wstring name)
 	m_rtvDescriptorSize(0), 
 	m_fenceValues{}
 {
-	m_camera.radius = 30.f;
-	m_camera.phi = 0.0f;
-	m_camera.theta = 0.0f;
+	m_camera.radius = 8.0f;
+	m_camera.phi = XM_PIDIV4;
+	m_camera.theta = 1.5f * XM_PI;
 }
 
 void D3D12App::OnInit()
@@ -90,18 +90,18 @@ void D3D12App::OnUpdate()
 
 	// Conver camera position from spherical to cartesian;
 	float x = m_camera.radius * sinf(m_camera.phi) * cosf(m_camera.theta);
-	float y = m_camera.radius * sinf(m_camera.phi) * sinf(m_camera.theta);
-	float z = m_camera.radius * cosf(m_camera.phi);
+	float z = m_camera.radius * sinf(m_camera.phi) * sinf(m_camera.theta);
+	float y = m_camera.radius * cosf(m_camera.phi);
 
 	// Build the view matrix
 
 	XMVECTOR position = XMVectorSet(x, y, z, 1.0f);
-	XMVECTOR target = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f); // Our object is currently in the (0,0,0) position
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
+	XMVECTOR target = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f); // Our object is currently in the (0,0,0) position
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMMATRIX view = XMMatrixLookAtLH(position, target, up);
 
 	// Build the projection matrix
-	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.1f, 1000.0f);
+	XMMATRIX projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 1.0f, 1000.0f);
 
 	XMMATRIX mvpMatrix = world* view* projection;
 
@@ -178,7 +178,7 @@ void D3D12App::OnMouseMove(WPARAM btnState, int x, int y)
 		m_camera.radius += dx - dy;
 
 		// Restrict the radius.
-		m_camera.radius = std::clamp(m_camera.radius, 5.0f, 50.0f);
+		m_camera.radius = std::clamp(m_camera.radius, 3.0f, 50.0f);
 	}
 
 	m_lastMousePosition.x = x;
