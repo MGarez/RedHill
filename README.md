@@ -8,7 +8,7 @@ The renderer has 2 modes that can be cycled by pressing space: a sphere grid whi
 
 - **Space** — cycle render mode (sphere grid / model)
 - **Ctrl** — swap the background environment
-- **Mouse / WASD** — camera
+- **Mouse** — camera movement and zoom
 
 ## Building
 
@@ -20,13 +20,7 @@ RedHill targets Direct3D 12 on Windows and builds with Visual Studio + MSBuild.
 - A recent Windows 10/11 SDK
 - NuGet package restore enabled (the default; needed for the D3D12 Agility SDK and DXC — see below)
 
-**Steps**
-1. Clone the repository.
-2. Open `RedHill.sln` in Visual Studio.
-3. Select the **x64** platform and either the `Debug` or `Release` configuration.
-4. Build and run (**F5**). The debugger working directory is the project folder, so `resources/` and `Shaders/` are found relative to it.
-
-**Dependencies (restored automatically)**
+**Dependencies**
 
 The [D3D12 Agility SDK](https://www.nuget.org/packages/Microsoft.Direct3D.D3D12) and [DirectX Shader Compiler](https://www.nuget.org/packages/Microsoft.Direct3D.DXC) are referenced through `RedHill/packages.config` and restored by NuGet on first build, so the `packages/` folder is **not** committed. If a build fails complaining about missing package files, restore them manually:
 
@@ -41,6 +35,14 @@ Third-party assets live under `RedHill/resources/` and keep their own licenses �
 [`RedHill/resources/CREDITS.md`](RedHill/resources/CREDITS.md). In short: the DamagedHelmet
 model is © ctxwing under CC BY 4.0, and the HDR environments are from Poly Haven under CC0.
 The RedHill source code is covered by [LICENSE](LICENSE).
+
+## Third-party libraries (`../thirdparty/`)
+
+| Library | Author | License |
+| --- | --- | --- |
+| stb_image | Sean Barrett | Public domain / MIT |
+| tiny_obj_loader | Syoyo Fujita | MIT |
+| MikkTSpace | Morten S. Mikkelsen | zlib-style (see file header) |
 
 ## Future plans
 
