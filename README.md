@@ -4,6 +4,12 @@ Red Hill is a pbr deferred renderer. It has a three parts g-buffer with albedo, 
 
 The renderer has 2 modes that can be cycled by pressing space: a sphere grid whith various values of metallic and roughness and a model renderer that loads and draws the damaged helmet model with its textures. Also the background enviroment can be swapped by pressing ctrl.
 
+![Demo Image](https://private-user-images.githubusercontent.com/64743019/620184486-d05be097-f301-4330-8f33-1e2154490118.jpg?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODM3MDk0NTgsIm5iZiI6MTc4MzcwOTE1OCwicGF0aCI6Ii82NDc0MzAxOS82MjAxODQ0ODYtZDA1YmUwOTctZjMwMS00MzMwLThmMzMtMWUyMTU0NDkwMTE4LmpwZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA3MTAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwNzEwVDE4NDU1OFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWQyZjUzMWUzN2Q3ZDVjOTUyMjNmYWRhMjU4OWNiYWU2Y2VjYmQyMzczZWY4MzcyZDlkODBjOGFiMDQ5MTY3NWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRmpwZWcifQ.mwjQ_QToK2u0bpiXBmCKpRfa2ZxYAQgCMcl6-fjbt4o)
+
+## Demo
+
+https://private-user-images.githubusercontent.com/64743019/620187314-e63bfc7c-cfc6-4699-a513-af76525ea19f.mp4
+
 ## Controls
 
 - **Space** — cycle render mode (sphere grid / model)
