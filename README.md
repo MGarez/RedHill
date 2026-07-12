@@ -2,11 +2,15 @@
 
 RedHill is a realtime deferred PBR renderer written from scratch using Direct3D 12.
 
-![RedHill](https://private-user-images.githubusercontent.com/64743019/620184486-d05be097-f301-4330-8f33-1e2154490118.jpg?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODM3MDk0NTgsIm5iZiI6MTc4MzcwOTE1OCwicGF0aCI6Ii82NDc0MzAxOS82MjAxODQ0ODYtZDA1YmUwOTctZjMwMS00MzMwLThmMzMtMWUyMTU0NDkwMTE4LmpwZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA3MTAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwNzEwVDE4NDU1OFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWQyZjUzMWUzN2Q3ZDVjOTUyMjNmYWRhMjU4OWNiYWU2Y2VjYmQyMzczZWY4MzcyZDlkODBjOGFiMDQ5MTY3NWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRmpwZWcifQ.mwjQ_QToK2u0bpiXBmCKpRfa2ZxYAQgCMcl6-fjbt4o)
+![RedHill](https://github.com/user-attachments/assets/748106ed-0daf-4ded-b846-44ffaa70d4f4)
 
 ## Demo
 
 https://private-user-images.githubusercontent.com/64743019/620187314-e63bfc7c-cfc6-4699-a513-af76525ea19f.mp4
+
+
+
+
 
 ## Features
 
