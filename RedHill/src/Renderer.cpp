@@ -1527,8 +1527,8 @@ ComPtr<IDxcBlob> Renderer::CompileShader(const std::wstring& filePath, const std
 	args.push_back(L"-Zi"); // Debug info
 	args.push_back(L"-Zss");
 	args.push_back(L"-Od");  // Skip optimization
-	args.push_back(L"-I"); args.push_back(L"Shaders"); 
 #endif
+	args.push_back(L"-I"); args.push_back(L"Shaders");
 
 	ComPtr<IDxcIncludeHandler> includeHandler;
 	CrashIfFailed(m_utils->CreateDefaultIncludeHandler(&includeHandler));
